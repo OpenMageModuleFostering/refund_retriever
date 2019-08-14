@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<layout version="0.1.0">
+    <retriever_adminhtml_retriever_index>
+        <reference name="content">
+            <block type="retriever/adminhtml_retriever" name="retriever" />
+        </reference>
+    </retriever_adminhtml_retriever_index>
+</layout>

@@ -1,0 +1,266 @@
+<?php
+class Refund_Retriever_Model_Observer
+{
+
+    private $countryCode_before;  
+    private $regionCode_before;
+    private $shipping_postcode_before;
+    private $shipping_city_before;
+    private $shipping_street2_before;
+    private $shipping_street1_before;
+    private $fedex_account_id_before;
+    private $fedex_meter_no_before;
+    private $fedex_key_before;
+    private $fedex_password_before;  
+    private $ups_gateway_url_before ;
+    private $ups_shipment_requesttype_before;
+    private $ups_container_before;
+    private $ups_dest_type_before;
+    private $ups_pickup_method_before;
+    private $ups_allowed_methods_before;
+    private $ups_gateway_xml_url_before;
+    private $ups_tracking_xml_url_before;
+    private $ups_shipaccept_xml_url_before;
+    private $ups_username_before;
+    private $ups_access_license_number_before;
+    private $ups_password_before;
+    public function beforesave() // Get all the details of shipping setting and shipping method before saving to database
+    {
+      $this->countryCode_before               =   Mage::getStoreConfig('shipping/origin/country_id');
+      $this->regionCode_before                =   Mage::getStoreConfig('shipping/origin/region_id');
+      $this->shipping_postcode_before         =   Mage::getStoreConfig('shipping/origin/postcode'); 
+      $this->shipping_city_before             =   Mage::getStoreConfig('shipping/origin/city');
+      $this->shipping_street1_before          =   Mage::getStoreConfig('shipping/origin/street_line1');
+      $this->shipping_street2_before          =   Mage::getStoreConfig('shipping/origin/street_line2');
+      $this->fedex_account_id_before          =   Mage::getStoreConfig('carriers/fedex/account');
+      $this->fedex_meter_no_before            =   Mage::getStoreConfig('carriers/fedex/meter_number');
+      $this->fedex_key_before                 =   Mage::getStoreConfig('carriers/fedex/key');
+      $this->fedex_password_before            =   Mage::getStoreConfig('carriers/fedex/password');
+      $this->ups_gateway_url_before           =   Mage::getStoreConfig('carriers_ups_gateway_url');
+      $this->ups_shipment_requesttype_before  =   Mage::getStoreConfig('carriers/ups/shipment/requesttype');
+      $this->ups_container_before             =   Mage::getStoreConfig('carriers/ups/container');
+      $this->ups_dest_type_before             =   Mage::getStoreConfig('carriers/ups/dest/type');
+      $this->ups_pickup_method_before         =   Mage::getStoreConfig('carriers/ups/pickup');
+      $this->ups_allowed_methods_before       =   Mage::getStoreConfig('carriers_ups_allowed_methods');
+      $this->ups_gateway_xml_url_before       =   Mage::getStoreConfig('carriers/ups/gateway_xml_url');
+      $this->ups_tracking_xml_url_before      =   Mage::getStoreConfig('carriers/ups/tracking_xml_url');
+      $this->ups_shipaccept_xml_url_before    =   Mage::getStoreConfig('carriers/ups/shipaccept_xml_url');
+      $this->ups_username_before              =   Mage::getStoreConfig('carriers/ups/username');
+      $this->ups_access_license_number_before =   Mage::getStoreConfig('carriers/ups/access_license_number');
+      $this->ups_password_before              =   Mage::getStoreConfig('carriers/ups/password');
+    }
+
+    public function adminSystemConfigChangedSectionretrieverconfig() //Get admin user details and send to end poin url
+    {
+        //admin details
+        $status        =  Mage::getStoreConfig('retrieverconfig/options/auto_retriever_status');
+        Mage::getSingleton('admin/session')->getData();
+        $user          =  Mage::getSingleton('admin/session');
+        $userId        =  $user->getUser()->getUserId();
+        $userEmail     =  $user->getUser()->getEmail();
+        $userFirstname =  $user->getUser()->getFirstname();
+        $userLastname  =  $user->getUser()->getLastname();
+        $userUsername  =  $user->getUser()->getUsername();
+        $userPassword  =  $user->getUser()->getPassword();
+
+        $store         =  Mage::app()->getStore();
+        $storeName     =  $store->getName();
+        $StoreId       =  $store->getStoreId();
+        $WebsiteId     =  $store->getWebsiteId();
+        $IsActive      =  $store->getIsActive();
+        $HomeUrl       =  Mage::getBaseUrl();
+        $storePhone    =  Mage::getStoreConfig('general/store_information/phone');
+        $countryCode   =  Mage::getStoreConfig('general/store_information/merchant_country');
+        $storeCountry  =  Mage::getModel('directory/country')->load($countryCode)->getName();
+        $storeAddress  =  Mage::getStoreConfig('general/store_information/address');
+
+        
+        if($status == 1) // checks If the Refund Retriever is Enable or Not
+        {
+           
+           $data       =  array(
+                                 "site_url"          =>  $HomeUrl,
+                                 "store_name"        =>  $storeName,
+                                 "store_contact_no"  =>  $storePhone,
+                                 "country"           =>  $countryCode,
+                                 "store_address"     =>  $storeAddress,
+                                 "email"             =>  $userEmail,
+                                 "admin_username"    =>  $userUsername,
+                                 "admin_first_name"  =>  $userFirstname,
+                                 "admin_last_name"   =>  $userLastname
+                                );
+                                
+                                
+                                
+           /**if($storePhone == NULL || $store_address == NULL)
+           {
+            Mage::getSingleton('core/session')->addError('Please enter and save the "Store Information" in "General" Tab');
+           }else{*/
+           $url      =  "https://partners.refundretriever.com/magento/auth";//end-point-url
+           $result   =  $this->curlrequest($data,$url);//Send the data to end-point-url and save the returned key
+           $data     =  json_decode($result, TRUE);
+           $result   =  $data['AUTH_TOKEN'];
+           $setkey   = new Mage_Core_Model_Config();
+           $setkey ->saveConfig('retrieverconfig/options/auth_key',$result , 'default', 0); 
+           $setkey ->saveConfig('retrieverconfig/options/endpointurl',$url , 'default', 0); 
+           Mage::getSingleton('core/session')->setRetrieverkey($result);
+           Mage::getSingleton('core/session')->setRetriever_endpoint($url); 
+           Mage::app()->getCacheInstance()->cleanType('config');
+           if($result > 0)
+            {
+             $data =  array( //Shipping settin and shipping method details to be send after installation
+                        "shipping_setting" => array(
+                                                   "Country"   =>  $this->countryCode_before,
+                                                    "State"     =>  $this->regionCode_before,
+                                                    "Zipcode"   =>  $this->shipping_postcode_before,
+                                                    "City"      =>  $this->shipping_city_before,
+                                                    "Street1"   =>  $this->shipping_street1_before,
+                                                    "Street2"   =>  $this->shipping_street2_before
+                                                   ),
+                      "Shipping_method" => array(
+                                                    "fedex_account_id"          => $this->fedex_account_id_before,
+                                                    "fedex_meter_no"            => $this->fedex_meter_no_before,
+                                                    "fedex_key"                 => $this->fedex_key_before,
+                                                    "fedex_password"            => $this->fedex_password_before,
+                                                  ) 
+                   
+                            );
+           $authkey  =  Mage::getStoreConfig('retrieverconfig/options/auth_key');
+           $url    =  "https://partners.refundretriever.com/magento/carrierAccount/u/".$authkey;
+           $result =  $this->curlrequest($data,$url);
+           }
+          }
+        //}
+    }
+
+    public function shippingSettingdetails()//To observe the change in shipping setting and update to the end-point-url 
+    {  
+           $countryCode          =  Mage::getStoreConfig('shipping/origin/country_id');
+           $shipping_county      =  Mage::getModel('directory/country')->load($countryCode)->getName();
+           $regionCode           =  Mage::getStoreConfig('shipping/origin/region_id');
+           $shipping_region      =  Mage::getModel('directory/region')->load($regionCode)->getName();
+           $shipping_postcode    =  Mage::getStoreConfig('shipping/origin/postcode');   
+           $shipping_city        =  Mage::getStoreConfig('shipping/origin/city');
+           $shipping_street1     =  Mage::getStoreConfig('shipping/origin/street_line1');
+           $shipping_street2     =  Mage::getStoreConfig('shipping/origin/street_line2');
+          
+           if($countryCode != $this->countryCode_before || $regionCode != $this->regionCode_before || $shipping_postcode != $this->shipping_postcode_before || $shipping_city != $this->shipping_city_before || $shipping_street1 != $this->shipping_street1_before  || $shipping_street2 != $this->shipping_street2_before) 
+           {
+             $data = array(
+                              "Country"   =>  $shipping_county,
+                              "State"     =>  $shipping_region,
+                              "Zipcode"   =>  $shipping_postcode,
+                              "City"      =>  $shipping_city,
+                              "Street1"   =>  $shipping_street1,
+                              "Street2"   =>  $shipping_street2
+                           );
+           $authkey  =  Mage::getStoreConfig('retrieverconfig/options/auth_key');
+           $url    =  "https://partners.refundretriever.com/magento/carrierAccount/u/".$authkey;
+            $result =  $this->curlrequest($data,$url);    
+          }
+       
+    }
+
+    public function shippingmethoddetails()//To observe the change in shipping method and update to the end-point-url 
+    { 
+     // UPS details   
+     $ups_active                =  Mage::getStoreConfig('carriers/ups/active');   
+     $ups_type                  =  Mage::getStoreConfig('carriers/ups/type');
+     $ups_title                 =  Mage::getStoreConfig('carriers/ups/title');
+     $ups_gateway_url           =  Mage::getStoreConfig('carriers_ups_gateway_url');
+     $ups_shipment_requesttype  =  Mage::getStoreConfig('carriers/ups/shipment/requesttype');
+     $ups_container             =  Mage::getStoreConfig('carriers/ups/container');
+     $ups_dest_type             =  Mage::getStoreConfig('carriers/ups/dest/type');
+     $ups_pickup_method         =  Mage::getStoreConfig('carriers/ups/pickup');
+     $ups_allowed_methods       =  Mage::getStoreConfig('carriers_ups_allowed_methods');
+     $ups_gateway_xml_url       =  Mage::getStoreConfig('carriers/ups/gateway_xml_url');
+     $ups_tracking_xml_url      =  Mage::getStoreConfig('carriers/ups/tracking_xml_url');
+     $ups_shipaccept_xml_url    =  Mage::getStoreConfig('carriers/ups/shipaccept_xml_url');
+     $ups_username              =  Mage::getStoreConfig('carriers/ups/username');
+     $ups_access_license_number =  Mage::getStoreConfig('carriers/ups/access_license_number');
+     $ups_password              =  Mage::getStoreConfig('carriers/ups/password');
+     if($ups_active == 1)
+     {
+      if($ups_type == 'UPS_XML')
+      {
+        $data = array(     //UPS details for UPS type UPS XML
+                        "ups_gateway_xml_url"       => $ups_gateway_xml_url,
+                        "ups_tracking_xml_url"      => $ups_tracking_xml_url,
+                        "ups_shipaccept_xml_url"    => $ups_shipaccept_xml_url,
+                        "ups_username"              => $ups_username,
+                        "ups_access_license_number" => $ups_access_license_number,
+                        "ups_password"              => $ups_password,
+                      );
+      if($ups_gateway_xml_url != $this->ups_gateway_xml_url_before  || $ups_tracking_xml_url != $this->ups_tracking_xml_url_before  || $ups_shipaccept_xml_url != $this->ups_shipaccept_xml_url_before || $ups_username != $this->ups_username_before || $ups_access_license_number != $this->ups_access_license_number_before || $ups_password != $this->ups_password_before)
+      {
+        $authkey  =  Mage::getStoreConfig('retrieverconfig/options/auth_key');
+        $url    =  "https://partners.refundretriever.com/magento/carrierAccount/u/".$authkey;
+        //$result =  $this->curlrequest($data,$url);
+      } 
+     } 
+      else if($ups_type == 'UPS')
+      {
+        $data = array(   //UPS details for UPS type UPS
+                        "ups_gateway_url"          => $ups_gateway_url,
+                        "ups_shipment_requesttype" => $ups_shipment_requesttype,
+                        "ups_container"            => $ups_container,
+                        "ups_dest_type"            => $ups_dest_type,
+                        "ups_pickup_method"        => $ups_pickup_method,
+                        "ups_allowed_methods"      => $ups_allowed_methods,
+
+                      );
+        if($ups_gateway_url != $this->ups_gateway_url_before || $ups_shipment_requesttype != $this->ups_shipment_requesttype_before || $ups_container != $this->ups_container_before || $ups_dest_type != $this->ups_dest_type_before || $ups_pickup_method != $this->ups_pickup_method_before)
+        {
+         $authkey  =  Mage::getStoreConfig('retrieverconfig/options/auth_key');
+         $url    =  "https://partners.refundretriever.com/magento/carrierAccount/u/".$authkey;
+         // $result =  $this->curlrequest($data,$url);
+        }
+
+      }               
+     }
+     //Fedex Details
+     $fedex_active     =  Mage::getStoreConfig('carriers/fedex/active');
+     $fedex_account_id =  Mage::getStoreConfig('carriers/fedex/account');
+     $fedex_meter_no   =  Mage::getStoreConfig('carriers/fedex/meter_number');
+     $fedex_key        =  Mage::getStoreConfig('carriers/fedex/key');
+     $fedex_password   =  Mage::getStoreConfig('carriers/fedex/password');
+     if($fedex_active == 1)
+     {
+      if($fedex_account_id != $this->fedex_account_id_before || $fedex_meter_no  != $this->fedex_meter_no_before || $fedex_key  != $this->fedex_key_before || $fedex_password != $this->fedex_password_before )
+      {
+         $data     = array(
+                              "fedex_account_id"  =>  $fedex_account_id,
+                              "fedex_meter_no"    =>  $fedex_meter_no,
+                              "fedex_key"         =>  $fedex_key,
+                              "fedex_password"    =>  $fedex_password,
+                           );
+         $authkey  =  Mage::getStoreConfig('retrieverconfig/options/auth_key');
+         $url      =  "https://partners.refundretriever.com/magento/carrierAccount/u/".$authkey;
+         $result   =  $this->curlrequest($data,$url);            
+      
+      }
+
+     }
+    
+    }
+      
+    public function curlrequest($data,$url)//Function to send all the Curl requests
+    {
+      $data_string =  json_encode($data);                                                                        
+      $ch          =  curl_init($url);                                
+      curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); 
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                                                'Content-Type: application/json',
+                                                'Content-Length: ' . strlen($data_string)) 
+                                                );                                                                
+
+        $result = curl_exec($ch);
+        return $result; 
+
+      }
+
+}
+

@@ -1,0 +1,16 @@
+{
+    "name": "OpenMageModuleFostering/Refund_Retriever",
+    "type": "magento-module",
+    "license": "Mozilla-Public-License-(MPL)-",
+    "homepage": "",
+    "description": "Refund Retriever helps you save on FedEx and UPS shipping. This extension allows you to sign up for the Refund Retriever service with one click, giving you easy access to the customer Account Center.",
+    "authors": [
+    {
+        "name": "Refund Retriever",
+        "email": "billy@refundretriever.com"
+    }
+],
+    "suggest": {
+        "magento-hackathon/magento-composer-installer": "*"
+    }
+}

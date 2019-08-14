@@ -1,0 +1,49 @@
+<?php
+class Refund_Retriever_Block_Endpoint_Renderer extends Mage_Adminhtml_Block_System_Config_Form_Field{
+    /**protected function _getElementHtml(Varien_Data_Form_Element_Abstract $element)
+    {
+        $value = Mage::getSingleton('core/session')->getRetrieverkey();
+        if($value <= 0){
+         
+        $value = Mage::getStoreConfig('retrieverconfig/options/key');
+        
+        }
+        $this->setElement($element);
+        $url = $this->getUrl('catalog/product'); 
+
+        $html = "<input type='text' name='retrieverconfig_options_key' value='".$value."' readonly='readonly' id='retrieverconfig_options_key' class='input-text disabled'/>";
+        
+        return $html;
+    }**/
+
+     protected function _prepareLayout()
+    {
+        parent::_prepareLayout();
+        if (!$this->getTemplate()) {
+            $this->setTemplate('retriever/system/config/disabled_endpoint.phtml');
+        }
+        return $this;
+    }
+
+    public function render(Varien_Data_Form_Element_Abstract $element)
+    {
+        $element->unsScope()->unsCanUseWebsiteValue()->unsCanUseDefaultValue();
+        return parent::render($element);
+    }
+
+    protected function _getElementHtml(Varien_Data_Form_Element_Abstract $element)
+    {
+        $value = Mage::getSingleton('core/session')->getRetrieverkey();
+        if($value <= 0){
+         
+        $value = $element->getEscapedValue();
+        
+        }
+        $originalData = $element->getOriginalData();
+        $this->addData(array(
+            'my_value' => $value,
+            'html_id' => $element->getHtmlId(),
+        ));
+        return $this->_toHtml();
+    }
+}
